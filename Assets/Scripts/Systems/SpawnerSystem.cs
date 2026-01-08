@@ -11,36 +11,85 @@ public partial struct SpawnerSystem : ISystem
     {
         var em = state.EntityManager;
 
-        // Create mesh + material
+        // Mesh + material
         Mesh mesh = CubeMeshGenerator.Create();
         Material material = Resources.Load<Material>("BuildingMaterial");
 
-        // Rendering description (NEW API)
         var renderDesc = new RenderMeshDescription(
             ShadowCastingMode.Off,
             receiveShadows: false
         );
 
-        // Base entity
         EntityArchetype archetype = em.CreateArchetype(
-            typeof(LocalTransform)
+            typeof(LocalTransform),
+            typeof(WorldPosition),
+            typeof(SpatialCell),
+            typeof(BuildingData),
+            typeof(PostTransformMatrix)
         );
 
-        // Register mesh & material with Entities Graphics
         var renderMeshArray = new RenderMeshArray(
             new[] { material },
             new[] { mesh }
         );
 
+        const float spacing = 10f; // meters between buildings (TEMP)
+
         for (int i = 0; i < 10000; i++)
         {
             Entity e = em.CreateEntity(archetype);
 
+            uint seed = (uint)(i * 928371 + 12345);
+            var rng = new Unity.Mathematics.Random(seed);
+
+            byte floors = (byte)rng.NextInt(1, 20);
+            float height = floors * BuildingConstants.FloorHeight;
+
+            // Continuous world position
+            float x = (i % 100) * spacing;
+            float z = (i / 100) * spacing;
+            float2 worldPos = new float2(x, z);
+
+            // Authoritative world position
+            em.SetComponentData(e, new WorldPosition
+            {
+                Value = worldPos
+            });
+
+            // Spatial acceleration cell
+            em.SetComponentData(e, new SpatialCell
+            {
+                Value = (int2)math.floor(worldPos / SpatialConstants.CellSize)
+            });
+
+            // Transform (visual only)
             em.SetComponentData(e,
-                LocalTransform.FromPosition(new float3(i % 100, 0, i / 100))
+                LocalTransform.FromPositionRotationScale(
+                    new float3(worldPos.x, height * 0.5f, worldPos.y),
+                    quaternion.identity,
+                    1f
+                )
             );
 
-            // Add rendering components
+            // Non-uniform scale for building height
+            em.SetComponentData(e,
+                new PostTransformMatrix
+                {
+                    Value = float4x4.Scale(new float3(1f, height, 1f))
+                }
+            );
+
+            // Building simulation data
+            em.SetComponentData(e, new BuildingData
+            {
+                Zone = (ZoningType)rng.NextInt(0, 4),
+                Floors = floors,
+                Height = height,
+                Seed = seed,
+                Occupancy = rng.NextFloat(0.3f, 1f)
+            });
+
+            // Rendering
             RenderMeshUtility.AddComponents(
                 e,
                 em,
