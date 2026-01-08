@@ -1,7 +1,10 @@
 using Unity.Entities;
 
-public struct PlotData : IComponentData
+namespace Throughput.Plots
 {
-    public ZoningType Zone;
-    public float Area;
+    public struct PlotData : IComponentData
+    {
+        public ZoningType Zone;
+        public float Area;
+    }
 }
