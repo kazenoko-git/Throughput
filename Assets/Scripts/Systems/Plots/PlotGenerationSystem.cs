@@ -8,21 +8,33 @@ public partial struct PlotGenerationSystem : ISystem
     public void OnUpdate(ref SystemState state)
     {
         var em = state.EntityManager;
+        //if (SystemAPI.HasSingleton<PlotsGeneratedTag>())
+        //return;
+        UnityEngine.Debug.Log(
+            $"PlotGenerationSystem running. Roads found: " +
+            SystemAPI.QueryBuilder()
+                .WithAll<RoadData, RoadSimTag>()
+                .Build()
+                .CalculateEntityCount()
+        );
 
         var roads = SystemAPI
             .QueryBuilder()
-            .WithAll<RoadSegment, RoadData>()
+            .WithAll<RoadData, RoadSimTag>()
             .Build()
             .ToEntityArray(Allocator.Temp);
 
         foreach (var road in roads)
-        {
+        {   
+            if (!em.HasBuffer<RoadSegment>(road))
+                continue;
             var segments = em.GetBuffer<RoadSegment>(road);
             var roadData = em.GetComponentData<RoadData>(road);
-
+            UnityEngine.Debug.Log($"Segments count: {segments.Length}");
             float roadHalfWidth =
                 (roadData.LanesLeft + roadData.LanesRight) *
                 roadData.LaneWidth * 0.5f;
+            UnityEngine.Debug.Log("Generating plots for road");
 
             foreach (var seg in segments)
             {
@@ -32,9 +44,9 @@ public partial struct PlotGenerationSystem : ISystem
         }
 
         roads.Dispose();
+        //em.CreateEntity(typeof(PlotsGeneratedTag));
 
-        // Run once for now
-        state.Enabled = false;
+
     }
 
     static void CreatePlot(
@@ -69,5 +81,6 @@ public partial struct PlotGenerationSystem : ISystem
             Zone = ZoningType.Residential, // TEMP
             Area = plotDepth * math.length(b - a)
         });
+        UnityEngine.Debug.Log("Plot created");
     }
 }

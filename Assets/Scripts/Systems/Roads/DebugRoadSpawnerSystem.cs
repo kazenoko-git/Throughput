@@ -28,6 +28,8 @@ public partial struct DebugRoadSpawnerSystem : ISystem
         {
             Dirty = true
         });
+        em.AddComponent<RoadSimTag>(road);
+
 
         // Add control points
         var points = em.AddBuffer<RoadControlPoint>(road);
